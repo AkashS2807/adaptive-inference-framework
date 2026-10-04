@@ -1,0 +1,84 @@
+{
+  "version": "phase1-uncalibrated-v1",
+  "calibrated": false,
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_revision": "c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+  "models": [
+    {
+      "id": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "rpm": 15,
+      "rpd": 500,
+      "tpm": 250000,
+      "tpd": null,
+      "max_output": 1536
+    },
+    {
+      "id": "openai/gpt-oss-20b",
+      "provider": "groq",
+      "rpm": 30,
+      "rpd": 1000,
+      "tpm": 8000,
+      "tpd": 200000,
+      "max_output": 1536,
+      "reasoning_effort": "low"
+    },
+    {
+      "id": "openai/gpt-oss-120b",
+      "provider": "groq",
+      "rpm": 30,
+      "rpd": 1000,
+      "tpm": 8000,
+      "tpd": 200000,
+      "max_output": 1536,
+      "reasoning_effort": "low"
+    }
+  ],
+  "judge_tier": 1,
+  "judge_max_output": 1536,
+  "temperature": 0.2,
+  "timeout_seconds": 90,
+  "quota_headroom": 0.8,
+  "max_input_chars": 12000,
+  "max_wait_seconds": 65,
+  "complexity": {
+    "weights": {
+      "length": 0.1,
+      "reasoning": 0.3,
+      "requirements": 0.35,
+      "technical": 0.25
+    },
+    "handcrafted_mix": 0.7,
+    "task_scores": {
+      "Factual": 0.15,
+      "Reasoning": 0.65,
+      "Analytical": 0.8,
+      "Creative": 0.4,
+      "Technical": 0.6
+    },
+    "low": 0.32,
+    "high": 0.65
+  },
+  "semantic_uncertain_margin": 0.025,
+  "semantic_min_similarity": 0.2,
+  "acceptance": 0.75,
+  "verification_complexity": 0.45,
+  "retrieval": {
+    "top_k": 3,
+    "min_similarity": 0.22,
+    "max_chars": 3500
+  },
+  "bandit": {
+    "exploration": 0.3,
+    "ridge": 1.0,
+    "hybrid_bonus": 0.12
+  },
+  "reward": {
+    "token_reference": 6000,
+    "seconds_reference": 60,
+    "token_weight": 0.15,
+    "latency_weight": 0.1,
+    "failure_penalty": 0.4
+  },
+  "automatic_proxy_rewards": false
+}

@@ -1,0 +1,62 @@
+{
+  "Factual": [
+    "What is the capital of Canada?",
+    "Define a primary key.",
+    "Who wrote Hamlet?",
+    "What is photosynthesis?",
+    "How many sides does a hexagon have?",
+    "Name the largest ocean.",
+    "What does HTTP stand for?",
+    "Define evaporation.",
+    "Which planet is closest to the Sun?",
+    "What is a compiler?"
+  ],
+  "Reasoning": [
+    "Why does ice float?",
+    "Explain why a greedy choice may fail.",
+    "Infer what follows if all A are B and no B are C.",
+    "Prove the sum of two even integers is even.",
+    "Why does increasing resistance reduce current?",
+    "Find the flaw in this argument.",
+    "Explain why this conclusion does not follow.",
+    "Solve a scheduling puzzle with dependent tasks.",
+    "Derive the area of a triangle.",
+    "Why does a cache improve repeated access?"
+  ],
+  "Analytical": [
+    "Compare solar and wind energy across cost and reliability.",
+    "Evaluate two database designs under changing workloads.",
+    "Analyze the causes and consequences of urban growth.",
+    "Compare three approaches and recommend one with limitations.",
+    "Assess the trade-offs between precision and recall.",
+    "Compare retrieval and fine-tuning for changing knowledge.",
+    "Analyze this experiment and identify confounders.",
+    "Evaluate a policy using competing objectives.",
+    "Contrast centralized and distributed architectures.",
+    "Assess two explanations against the evidence."
+  ],
+  "Creative": [
+    "Write a poem about rain.",
+    "Invent a story about a lost map.",
+    "Suggest names for a reading club.",
+    "Write a friendly invitation.",
+    "Create a dialogue between two explorers.",
+    "Compose a short fictional scene.",
+    "Invent an original metaphor for patience.",
+    "Write a product slogan.",
+    "Create a character with conflicting goals.",
+    "Describe an imaginary city."
+  ],
+  "Technical": [
+    "Debug this Python function.",
+    "Implement binary search in Java.",
+    "Explain database transaction isolation.",
+    "Design an API authentication flow.",
+    "Write SQL to find duplicate records.",
+    "Analyze the complexity of merge sort.",
+    "Explain transformer attention.",
+    "Diagnose a memory leak in a service.",
+    "Design an index for this database query.",
+    "Explain how embeddings support semantic retrieval."
+  ]
+}
