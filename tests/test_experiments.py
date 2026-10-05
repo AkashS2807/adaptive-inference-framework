@@ -28,6 +28,13 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(import_grades(e,folder),2)
         result=report(e.store,'unit',folder)
         self.assertEqual(result[0]['mean_human_quality'],1)
+        self.assertEqual(import_grades(e,folder,source='blinded_assistant'),2)
+        result=report(e.store,'unit',folder)
+        self.assertEqual(result[0]['human_scored'],0)
+        self.assertIsNone(result[0]['mean_human_quality'])
+        self.assertEqual(result[0]['assistant_scored'],1)
+        self.assertEqual(result[0]['mean_assistant_quality'],1)
+        self.assertTrue(all(not r['learning_enabled'] and r['reward'] is None for r in e.store.recent()))
         self.assertTrue((folder/'all_attempts.jsonl').exists())
     def test_sequential_training_feedback(self):
         e=self.engine();e.cfg['automatic_proxy_rewards']=False

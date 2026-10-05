@@ -68,7 +68,9 @@ def export_grades(store,name,folder):
     (folder/'grading_key.json').write_text(json.dumps(mapping,indent=2),encoding='utf-8')
     return str(folder/'blind_grading.csv')
 
-def import_grades(engine,folder):
+def import_grades(engine,folder,source='blinded_human'):
+    if source not in ('blinded_human','blinded_assistant'):
+        raise ValueError('Unknown grading source')
     folder=Path(folder);mapping=json.loads((folder/'grading_key.json').read_text(encoding='utf-8'));count=0
     with (folder/'blind_grading.csv').open(encoding='utf-8-sig',newline='') as f:
         for row in csv.DictReader(f):
@@ -76,10 +78,10 @@ def import_grades(engine,folder):
             values=[float(row[k]) for k in ('relevance','completeness','correctness')]
             if not all(0<=v<=1 for v in values): raise ValueError('Scores must be 0..1')
             r=engine.store.get(mapping[row['blind_id']]);quality=sum(values)/3
-            r['benchmark_quality']={'score':quality,'dimensions':dict(zip(('relevance','completeness','correctness'),values)),'source':'blinded_human','notes':row.get('notes','')}
+            r['benchmark_quality']={'score':quality,'dimensions':dict(zip(('relevance','completeness','correctness'),values)),'source':source,'notes':row.get('notes','')}
             engine.store.save(r)
             if r['learning_enabled'] and not r.get('reward') and r['status'] in ('completed','needs_review'):
-                engine.controller.feedback(r,quality,'blinded_human')
+                engine.controller.feedback(r,quality,source)
             count+=1
     return count
 
@@ -90,12 +92,15 @@ def report(store,name,folder):
         group=[r for r in rows if r['mode']==mode]
         if not group: continue
         good=[r for r in group if r['status'] in ('completed','needs_review')]
-        quality=[r['benchmark_quality']['score'] for r in good if r.get('benchmark_quality')]
+        quality=[r['benchmark_quality']['score'] for r in good if r.get('benchmark_quality',{}).get('source')=='blinded_human']
+        assistant=[r['benchmark_quality']['score'] for r in good if r.get('benchmark_quality',{}).get('source')=='blinded_assistant']
         def avg(k):return statistics.mean(r['metrics'][k] for r in good) if good else None
         counts=sum(r['metrics']['generation_calls'] for r in good)
         summary.append({'mode':mode,'cells_attempted':len(group),'completed_responses':len(good),'human_scored':len(quality),
           'mean_human_quality':statistics.mean(quality) if quality else None,
           'human_pass_rate':sum(q>=group[0]['config']['acceptance'] for q in quality)/len(quality) if quality else None,
+          'assistant_scored':len(assistant),'mean_assistant_quality':statistics.mean(assistant) if assistant else None,
+          'assistant_pass_rate':sum(q>=group[0]['config']['acceptance'] for q in assistant)/len(assistant) if assistant else None,
           'mean_active_seconds':avg('active_latency_seconds'),'mean_wall_seconds':avg('wall_latency_seconds'),
           'mean_total_tokens':avg('total_tokens'),'mean_actual_cost_inr':avg('actual_cost_inr'),'mean_api_calls':avg('api_calls'),
           'tier3_generation_share':sum(r['metrics']['tier3_generation_calls'] for r in good)/counts if counts else None,
@@ -124,5 +129,5 @@ def report(store,name,folder):
     (folder/'all_attempts.jsonl').write_text('\n'.join(json.dumps(r,ensure_ascii=False) for r in raw)+'\n',encoding='utf-8')
     overhead={'all_attempt_api_calls':sum(r.get('metrics',{}).get('api_calls',0) for r in raw),'all_attempt_reported_tokens':sum(r.get('metrics',{}).get('total_tokens',0) for r in raw),'attempt_records':len(raw)}
     (folder/'usage.json').write_text(json.dumps(overhead,indent=2),encoding='utf-8')
-    (folder/'README.txt').write_text('Descriptive pilot results only. Blank quality means ungraded, not zero. Compare identical completed query IDs; report missing cells and grading coverage. API latency includes provider/network differences. Tokens are a resource proxy, not FLOPs. Human grades are independent of the operational evaluator. Test policies are frozen. All-attempt overhead includes retries. Do not claim statistical superiority from this smoke benchmark.\n',encoding='utf-8')
+    (folder/'README.txt').write_text('Descriptive pilot results only. Blank quality means ungraded, not zero. Compare identical completed query IDs; report missing cells and grading coverage. API latency includes provider/network differences. Tokens are a resource proxy, not FLOPs. Human and assistant grades are reported separately; assistant review is not independent human validation. Test policies are frozen. All-attempt overhead includes retries. Failed-call token consumption is unknown, not zero. Do not claim statistical superiority from this smoke benchmark.\n',encoding='utf-8')
     return summary

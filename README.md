@@ -2,7 +2,7 @@
 
 A modular Python application for CPU query analysis and three-tier API inference. Includes Formula, contextual LinUCB, Hybrid, Always-Strongest, conditional local retrieval, conditional rubric verification, bounded escalation, SQLite logs, human feedback, and reproducible benchmark commands.
 
-**Status:** implementation and offline/integration checks are supplied. Your account's three real API calls must still pass the preflight. Model capability ordering and policy constants are **provisional**, not experimentally established. No Phase 2 supervised router is included.
+**Status:** Phase 1 implementation and functional validation complete. Windows checks pass (27/27 tests and UI AppTest), all three real APIs have successful logged calls, and the existing frozen held-out run completed 16/16 cells on four queries. Held-out quality has assistant rubric review, not independent human grading. Calibration, tier ordering, and superiority remain **provisional**; `calibrated=false`. See [VALIDATION.md](VALIDATION.md) and [aggregate results](docs/phase1-results.json). No Phase 2 supervised router is included.
 
 ## 1. Open in VS Code (Windows)
 
@@ -86,6 +86,8 @@ Fill the three 0–1 columns in `outputs/test-01/blind_grading.csv`. The file hi
 ```
 
 Outputs: `summary.csv`, `runs.jsonl`, `all_attempts.jsonl`, `usage.json`, and the grading files. Blank quality is **unmeasured**, not zero. Compare the same completed queries, include failures/coverage, and report mixed-provider latency as end-to-end service latency, not pure model speed.
+
+The default import source is `blinded_human`. For assistant-authored rubric review, explicitly add `--source blinded_assistant`; reports keep human and assistant scores separate. Assistant review does not establish independent human validation. Do not re-export over a filled grading CSV unless you intend to replace it.
 
 ## Free-tier budget controls
 

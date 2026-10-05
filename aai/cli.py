@@ -14,7 +14,7 @@ def main():
     bench=sub.add_parser('benchmark');bench.add_argument('--dataset',default=str(ROOT/'data/benchmark.jsonl'));bench.add_argument('--experiment',required=True);bench.add_argument('--split',choices=('pilot','train','test'),default='test');bench.add_argument('--modes',nargs='+',choices=MODES,default=list(MODES));bench.add_argument('--namespace',default='default');bench.add_argument('--limit',type=int);bench.add_argument('--seed',type=int,default=42)
     for name in ('report','export-grades'):
         q=sub.add_parser(name);q.add_argument('--experiment',required=True);q.add_argument('--folder',default=str(ROOT/'outputs/report'))
-    q=sub.add_parser('import-grades');q.add_argument('--folder',default=str(ROOT/'outputs/report'))
+    q=sub.add_parser('import-grades');q.add_argument('--folder',default=str(ROOT/'outputs/report'));q.add_argument('--source',choices=('blinded_human','blinded_assistant'),default='blinded_human')
     args=p.parse_args();load_env();cfg=load_config(args.config);store=Store(args.db)
     if args.command=='doctor':
         print('Python:',platform.python_version(),'| Free plan confirmation:',os.getenv('FREE_TIER_CONFIRMED','false'))
@@ -38,7 +38,7 @@ def main():
         from .controllers import Controller
         class Grader:pass
         e=Grader();e.store=store;e.controller=Controller(cfg,store)
-        print('Imported grades:',import_grades(e,args.folder));return
+        print('Imported grades:',import_grades(e,args.folder,args.source));return
     from .pipeline import Engine
     e=Engine(cfg,store)
     if args.command=='prepare':print('CPU embedding model, prototypes and evidence corpus loaded successfully.');return
