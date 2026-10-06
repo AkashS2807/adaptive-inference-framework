@@ -12,6 +12,8 @@ def main():
     sub.add_parser('doctor');sub.add_parser('check-apis');sub.add_parser('prepare')
     ask=sub.add_parser('ask');ask.add_argument('query');ask.add_argument('--mode',choices=MODES,default='formula');ask.add_argument('--learn',action='store_true');ask.add_argument('--namespace',default='default')
     bench=sub.add_parser('benchmark');bench.add_argument('--dataset',default=str(ROOT/'data/benchmark.jsonl'));bench.add_argument('--experiment',required=True);bench.add_argument('--split',choices=('pilot','train','test'),default='test');bench.add_argument('--modes',nargs='+',choices=MODES,default=list(MODES));bench.add_argument('--namespace',default='default');bench.add_argument('--limit',type=int);bench.add_argument('--seed',type=int,default=42)
+    bench.add_argument('--retry-needs-review',action='store_true',help='Retry frozen test cells flagged needs_review; retain all earlier attempts')
+    bench.add_argument('--generation-format-file',type=Path,help='Frozen-test-only generation instruction; signed separately from query/configuration')
     for name in ('report','export-grades'):
         q=sub.add_parser(name);q.add_argument('--experiment',required=True);q.add_argument('--folder',default=str(ROOT/'outputs/report'))
     q=sub.add_parser('import-grades');q.add_argument('--folder',default=str(ROOT/'outputs/report'));q.add_argument('--source',choices=('blinded_human','blinded_assistant'),default='blinded_human')
@@ -56,7 +58,9 @@ def main():
                     if len(scores)==3 and all(0<=s<=1 for s in scores):return sum(scores)/3
                 except ValueError:pass
                 print('Enter three numbers between 0 and 1, separated by commas.')
-        if not run_benchmark(e,args.dataset,args.experiment,args.split,args.modes,args.namespace,args.seed,args.limit,feedback if args.split=='train' and not cfg.get('automatic_proxy_rewards') else None):sys.exit(2)
+        suffix=args.generation_format_file.read_text(encoding='utf-8').rstrip('\r\n') if args.generation_format_file else ''
+        if args.generation_format_file and not suffix: raise ValueError('Generation format instruction is empty')
+        if not run_benchmark(e,args.dataset,args.experiment,args.split,args.modes,args.namespace,args.seed,args.limit,feedback if args.split=='train' and not cfg.get('automatic_proxy_rewards') else None,retry_needs_review=args.retry_needs_review,generation_suffix=suffix):sys.exit(2)
 if __name__=='__main__':
     try:main()
     except (ValueError,APIError) as exc:print('Error:',exc,file=sys.stderr);sys.exit(1)

@@ -50,3 +50,40 @@ class ExperimentTests(unittest.TestCase):
         test=e.store.recent()[0];self.assertNotEqual(test['decision']['state_key'],r['decision']['state_key'])
         self.assertEqual(test['decision']['state_version'],1)
         self.assertFalse(test['learning_enabled'])
+
+    def test_suffix_signature_rejects_changed_condition(self):
+        e=self.engine();path=Path(self.tmp.name)/'format.jsonl'
+        path.write_text(json.dumps({'id':'q','split':'test','category':'factual','query':'What is a tree?'})+'\n')
+        self.assertTrue(run_benchmark(e,path,'format',modes=['formula'],generation_suffix='Be concise.'))
+        r=e.store.recent()[0];self.assertEqual(r['analysis']['original'],'What is a tree?')
+        self.assertFalse(r['learning_enabled']);self.assertIsNone(r['reward'])
+        for suffix in ('Different instruction.',''):
+            with self.assertRaises(ValueError):run_benchmark(e,path,'format',modes=['formula'],generation_suffix=suffix)
+        with self.assertRaises(ValueError):run_benchmark(e,path,'format',split='train',generation_suffix='Be concise.')
+
+    def test_amended_cohort_stops_on_structural_failure(self):
+        e=self.engine();path=Path(self.tmp.name)/'structural.jsonl'
+        path.write_text(json.dumps({'id':'q','split':'test','category':'factual','query':'What is a tree?'})+'\n')
+        original=e.run
+        def truncated(*args,**kwargs):
+            r=original(*args,**kwargs);r['status']='needs_review'
+            r['attempts'][0]['evaluation']['basic']['issues']=['output_truncated']
+            e.store.save(r);return r
+        e.run=truncated
+        self.assertFalse(run_benchmark(e,path,'structural',generation_suffix='Be concise.'))
+        self.assertEqual(len(e.store.recent()),1)
+
+    def test_explicit_retry_preserves_review_and_skips_completed(self):
+        e=self.engine();e.cfg['automatic_proxy_rewards']=False
+        path=Path(self.tmp.name)/'retry.jsonl'
+        path.write_text(json.dumps({'id':'q','split':'test','category':'factual','query':'What is a tree?'})+'\n')
+        run_benchmark(e,path,'retry-review',modes=['formula','baseline'])
+        original=next(r for r in e.store.recent() if r['mode']=='formula')
+        original['status']='needs_review';e.store.save(original)
+        run_benchmark(e,path,'retry-review',modes=['formula','baseline'])
+        self.assertEqual(len(e.store.recent()),2)
+        run_benchmark(e,path,'retry-review',modes=['formula','baseline'],retry_needs_review=True)
+        self.assertEqual(len(e.store.recent()),3)
+        self.assertEqual(e.store.get(original['id'])['status'],'needs_review')
+        self.assertEqual(sum(r['mode']=='baseline' for r in e.store.recent()),1)
+        self.assertTrue(all(not r['learning_enabled'] and r.get('reward') is None for r in e.store.recent()))

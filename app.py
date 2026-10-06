@@ -4,6 +4,7 @@ import streamlit as st
 from aai.config import ROOT,load_config,load_env
 from aai.storage import Store
 from aai.controllers import Controller
+from ui_rendering import response_markdown
 
 st.set_page_config(page_title='Adaptive Inference | Phase 1',page_icon='🔀',layout='wide')
 load_env();cfg=load_config();store=Store(ROOT/'outputs/runs.sqlite')
@@ -49,7 +50,7 @@ with query_tab:
         if run['status']=='needs_review':st.warning('The strongest attempted tier did not meet the adequacy threshold. Showing the best measured attempt; review it.')
         elif run['status'] not in ('completed',):st.warning(run.get('error') or run['final_evaluation'].get('reason') or run['status'])
         elif run['final_evaluation']['status']=='unchecked':st.info('Basic checks passed. Semantic correctness was not independently verified.')
-        st.markdown(run['response'] or 'No answer was generated.')
+        st.markdown(response_markdown(run['response'] or 'No answer was generated.'),unsafe_allow_html=False)
         st.subheader('Inference report')
         a=run['analysis'];m=run['metrics'];cols=st.columns(4)
         cols[0].metric('Complexity',f'{a["complexity"]:.3f}',a['complexity_level'])

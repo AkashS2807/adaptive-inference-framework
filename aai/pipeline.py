@@ -14,15 +14,20 @@ class Engine:
         self.gateway=gateway or Gateway(self.cfg,self.store)
         self.retriever=retriever or Retriever(self.cfg,self.semantic)
         self.controller=Controller(self.cfg,self.store);self.evaluator=Evaluator(self.cfg,self.gateway)
-    def run(self,query,mode='formula',learning=False,namespace='default',metadata=None):
+    def run(self,query,mode='formula',learning=False,namespace='default',metadata=None,generation_suffix=''):
+        if generation_suffix and (learning or not metadata or metadata.get('split')!='test'):
+            raise ValueError('Generation format suffix requires frozen test evaluation')
+        system=SYSTEM+'\n\n'+generation_suffix if generation_suffix else SYSTEM
         start=time.perf_counter()
         a=analyze(query,self.semantic,self.cfg)
         run={'schema_version':1,'id':uuid.uuid4().hex,'created':time.time(),'mode':mode,
              'config_hash':self.cfg['hash'],'config':self.cfg,'analysis':a,'metadata':metadata or {},
              'learning_enabled':bool(learning and mode in ('online','hybrid')),'namespace':namespace,
              'embedding_model':self.cfg['embedding_model'],'embedding_revision':self.cfg.get('embedding_revision'),
-             'python_version':platform.python_version(),'source_hash':self.source_hash,'generation_prompt_hash':hashlib.sha256(SYSTEM.encode()).hexdigest(),'attempts':[],'status':'started','reward':None,
+             'python_version':platform.python_version(),'source_hash':self.source_hash,'generation_prompt_hash':hashlib.sha256(system.encode()).hexdigest(),'attempts':[],'status':'started','reward':None,
              'response':'','retrieval':{'status':'not_requested','documents':[]},'verification':a['verification_required']}
+        if generation_suffix:
+            run['generation_format']={'instruction':generation_suffix,'sha256':hashlib.sha256(generation_suffix.encode()).hexdigest(),'condition':'amended concise-format Complex extension'}
         run['decision']=self.controller.decide(mode,a,namespace);self.store.save(run)
         try:
             if a['retrieval_required']:
@@ -34,7 +39,7 @@ class Engine:
             evidence=run['retrieval']['documents']
             user=json.dumps({'query':query,'evidence':evidence},ensure_ascii=False) if evidence else query
             for tier in range(run['decision']['initial_tier'],3):
-                response=self.gateway.generate(run['id'],tier,SYSTEM,user)
+                response=self.gateway.generate(run['id'],tier,system,user)
                 ev=self.evaluator.evaluate(run['id'],query,response,evidence,a['verification_required'])
                 run['attempts'].append({'tier':tier,'model':self.cfg['models'][tier]['id'],'response':response['text'],
                                         'generation_call_id':response['call_id'],'evaluation':ev})

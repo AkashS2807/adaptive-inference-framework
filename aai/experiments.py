@@ -10,12 +10,17 @@ def dataset(path):
     if not all(q.get('split') in ('pilot','train','test') and q.get('query') for q in items): raise ValueError('Each query needs split and query fields')
     return items
 
-def run_benchmark(engine,path,experiment,split='test',modes=MODES,namespace='default',seed=42,limit=None,feedback_fn=None):
+def run_benchmark(engine,path,experiment,split='test',modes=MODES,namespace='default',seed=42,limit=None,feedback_fn=None,retry_needs_review=False,generation_suffix=''):
+    if generation_suffix and split!='test':
+        raise ValueError('Generation format suffix requires frozen test evaluation')
+    if retry_needs_review and split != 'test':
+        raise ValueError('Retrying needs_review is restricted to frozen test evaluation')
     items=[q for q in dataset(path) if q['split']==split]
     if limit: items=items[:limit]
     if not items: raise ValueError('No queries in the selected split')
     dh=hashlib.sha256(Path(path).read_bytes()).hexdigest()
     signature={'dataset_hash':dh,'split':split,'modes':list(modes),'namespace':namespace,'seed':seed,'limit':limit,'config_hash':engine.cfg['hash']}
+    if generation_suffix: signature['generation_suffix_sha256']=hashlib.sha256(generation_suffix.encode()).hexdigest()
     key='experiment:'+experiment;old=engine.store.state(key)
     if old and old!=signature: raise ValueError('Experiment ID already has different settings; use a new ID.')
     engine.store.save_state(key,signature)
@@ -30,18 +35,23 @@ def run_benchmark(engine,path,experiment,split='test',modes=MODES,namespace='def
                 source=engine.controller.key(mode,context,namespace)
                 engine.store.save_state(dest,engine.store.state(source) or engine.controller.initial(len(context['context'])))
     existing=[r for r in engine.store.recent(100000) if r.get('metadata',{}).get('experiment')==experiment]
-    completed={(r['metadata']['query_id'],r['mode']) for r in existing if r['status'] in ('completed','needs_review','evidence_unavailable')}
+    terminal=('completed','evidence_unavailable') if retry_needs_review else ('completed','needs_review','evidence_unavailable')
+    completed={(r['metadata']['query_id'],r['mode']) for r in existing if r['status'] in terminal}
     order=random.Random(seed)
     for q in items:
         current=list(modes);order.shuffle(current)
         for mode in current:
             if (q['id'],mode) in completed: continue
             metadata={'experiment':experiment,'query_id':q['id'],'split':split,'category':q['category'],'dataset_hash':dh,'reference_rubric':q.get('rubric',''),'order_seed':seed}
-            r=engine.run(q['query'],mode,learning=(split=='train'),namespace=run_namespace,metadata=metadata)
+            kwargs={'generation_suffix':generation_suffix} if generation_suffix else {}
+            r=engine.run(q['query'],mode,learning=(split=='train'),namespace=run_namespace,metadata=metadata,**kwargs)
             if split=='train' and feedback_fn and r['learning_enabled'] and not r.get('reward') and r['status'] in ('completed','needs_review'):
                 quality=feedback_fn(r,q)
                 if quality is not None: engine.controller.feedback(r,quality,'human_training')
             print(f'{q["id"]} | {mode} | {r["status"]} | calls={r["metrics"]["api_calls"]}',flush=True)
+            if generation_suffix and (r['status'] not in ('completed',) or any('output_truncated' in a['evaluation'].get('basic',{}).get('issues',[]) for a in r['attempts'])):
+                print('Amended cohort stopped on incomplete/structural outcome; no retry was made.',flush=True)
+                return False
             if r['status'] in ('quota_paused','api_error','evaluation_unavailable'):
                 print('Paused. Resolve the reported issue and repeat the same command to resume. Partial attempts remain logged.',flush=True)
                 return False

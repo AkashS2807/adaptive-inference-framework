@@ -17,6 +17,15 @@ with tempfile.TemporaryDirectory() as d:
         at.button[0].click().run(timeout=30)
         assert len(at.exception)==0,[e.message for e in at.exception]
         assert at.session_state['last_run']['status']=='completed'
+        original = '**Area:**\n' + r'\[\text{Area}=s \times s=s^{2}.\]' + '\nRatio: ' + r'\(4\).'
+        at.session_state['last_run']['response'] = original
+        at.run(timeout=30)
+        from ui_rendering import response_markdown
+        rendered = [m for m in at.markdown if m.value == response_markdown(original)]
+        assert len(rendered) == 1
+        assert not rendered[0].proto.allow_html
+        assert at.session_state['last_run']['response'] == original
+        assert any('Semantic correctness was not independently verified' in i.value for i in at.info)
         at.sidebar.selectbox[0].select('Online Adaptive').run()
         at.sidebar.checkbox[0].check().run()
         at.text_area[0].input('What is a tree?');at.button[0].click().run(timeout=30)

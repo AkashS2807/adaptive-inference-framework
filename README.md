@@ -109,6 +109,8 @@ Maximum escalation is tier 1 → 2 → 3, with no same-tier loop. If all judged 
 
 ## Project layout
 
+Performance tables, metric definitions, reproducible PNG/SVG graphs, and the MoE comparison: [docs/performance-analysis.md](docs/performance-analysis.md). Run `.\.venv\Scripts\python.exe scripts/analyze_performance.py` after installing `requirements-analysis.txt`; this reads existing held-out data without inference or state updates. The [amended concise-format Complex cohort](docs/complex-concise-results.md) completed 8/8 cells and is reported separately from original Phase 1, with quality and format-compliance limitations explicit.
+
 - `app.py` — Streamlit interface.
 - `aai/config.py` — configuration and local environment loading.
 - `aai/analysis.py` — preprocessing, features, prototypes, cosine similarity, complexity.

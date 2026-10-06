@@ -39,6 +39,27 @@ class PipelineTests(unittest.TestCase):
         r=self.engine().run('What is a tree?')
         self.assertEqual(r['decision']['initial_tier'],0);self.assertEqual(r['metrics']['api_calls'],1)
         self.assertIsNone(r['final_evaluation']['score']);self.assertEqual(r['final_evaluation']['status'],'unchecked')
+
+    def test_generation_suffix_preserves_analysis_and_judge(self):
+        from aai.pipeline import SYSTEM
+        from aai.evaluation import JUDGE_SYSTEM
+        from aai.config import ROOT
+        import hashlib
+        suffix=(ROOT/'docs/complex-concise-instruction.txt').read_text(encoding='utf-8').rstrip('\r\n')
+        for mode in ('formula','online','hybrid','baseline'):
+            e=self.engine([.2,.9,.9]);q='Calculate 4 plus 4'
+            original=e.run(q,mode)
+            r=e.run(q,mode,metadata={'split':'test'},generation_suffix=suffix)
+            self.assertEqual(r['analysis'],original['analysis'])
+            self.assertEqual(r['decision']['initial_tier'],original['decision']['initial_tier'])
+            self.assertFalse(r['learning_enabled']);self.assertIsNone(r['reward'])
+            self.assertEqual(r['generation_prompt_hash'],hashlib.sha256((SYSTEM+'\n\n'+suffix).encode()).hexdigest())
+            self.assertEqual(r['generation_format']['instruction'],suffix)
+            bodies=self.transport.bodies[-r['metrics']['api_calls']:]
+            for body in bodies:
+                system=body['systemInstruction']['parts'][0]['text'] if 'contents' in body else body['messages'][0]['content']
+                self.assertIn(system,(SYSTEM+'\n\n'+suffix,JUDGE_SYSTEM))
+        with self.assertRaises(ValueError):self.engine().run('q',learning=True,metadata={'split':'test'},generation_suffix=suffix)
     def test_escalation_and_full_cost(self):
         r=self.engine([.2,.9]).run('Calculate 4 plus 4','online',True)
         self.assertEqual([a['tier'] for a in r['attempts']],[0,1]);self.assertEqual(r['metrics']['api_calls'],4)
